@@ -21,7 +21,12 @@ a{color:#7C3AED;font-weight:600}
   <h1>Version history</h1>
   <p>This page lists what changed in each version and what to do to upgrade. New clients do not need it. Their copy is already current.</p>
   <div class="card">
-    <h2>v1.0.1 <span class="tag">Current</span></h2>
+    <h2>v1.0.2 <span class="tag">Current</span></h2>
+    <p><b>What changed:</b> If Google Drive refuses a file (for example, your Drive storage is full), the form now says so in plain words. Before, it only said "Upload failed".</p>
+    <p><b>To upgrade:</b> Replace Code.gs and Responses.gs with the new files from the repo (gas folder). Replace form-template.html content in your form page. Click Deploy, then New deployment, then Web app. Copy the new web app URL into your form page.</p>
+  </div>
+  <div class="card">
+    <h2>v1.0.1</h2>
     <p><b>What changed:</b> Answers that start with = + - or @ are now saved as plain text. Before, an answer like =SUM(1,2) turned into a formula in your Sheet.</p>
     <p><b>To upgrade:</b> Open your Apps Script project. Replace the code in Responses.gs and Code.gs with the new files from the repo (gas folder). Then click Deploy, then New deployment, then Web app. Copy the new web app URL into your form page. Each new deployment makes a new URL.</p>
   </div>

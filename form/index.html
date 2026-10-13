@@ -316,7 +316,7 @@ function fileToB64(f) {
 async function uploadB64(qn, name, mime, b64) {
   if (preview) return 'preview-not-saved';
   const r = await post({ action: 'upload', formId: FORM_ID, sessionId: sid, questionId: qn.id, fileName: name, mime: mime, data: b64 });
-  if (!r.ok) throw new Error(r.error === 'too_large' ? 'That file is too large. The limit is 15 MB.' : r.error === 'file_type_blocked' ? 'That file type is not allowed.' : 'Upload failed. Try again.');
+  if (!r.ok) throw new Error(r.error === 'too_large' ? 'That file is too large. The limit is 15 MB.' : r.error === 'file_type_blocked' ? 'That file type is not allowed.' : r.error === 'storage_unavailable' ? 'File uploads are not working right now. Please tell the form owner.' : 'Upload failed. Try again.');
   return r.url;
 }
 

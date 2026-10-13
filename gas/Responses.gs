@@ -84,9 +84,15 @@ var Responses = {
     if (q.type === 'signature') { name = 'signature.png'; mime = 'image/png'; }
     if (BLOCKED_EXT.test(name)) return { ok: false, error: 'file_type_blocked' };
 
-    var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, sid.slice(0, 8) + '_' + q.id + '_' + name);
-    var file = folder_(d.priv.formId).createFile(blob);
-    return { ok: true, url: file.getUrl(), name: name };
+    try {
+      var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, sid.slice(0, 8) + '_' + q.id + '_' + name);
+      var file = folder_(d.priv.formId).createFile(blob);
+      return { ok: true, url: file.getUrl(), name: name };
+    } catch (err) {
+      // Drive refused the file (storage full or a Drive limit). Log it. Tell the page in plain terms.
+      console.error('upload failed: ' + (err && err.message ? err.message : err));
+      return { ok: false, error: 'storage_unavailable' };
+    }
   }
 };
 
