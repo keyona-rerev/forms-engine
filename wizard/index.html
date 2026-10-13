@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Forms Engine Setup Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F0F7F7;--ink:#0D1F2D;--body:#3D5166;--cyan:#1A9E9E;--purple:#7C3AED;--line:#C9DADA;--card:#fff;--ok:#0D7E7E;--err:#B42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--body);font:16px/1.6 Inter,system-ui,sans-serif}
+header{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header strong{font:700 1.15rem Outfit,sans-serif;color:var(--ink)}
+header a{color:var(--purple);font-weight:600}
+.badge{display:inline-block;background:rgba(26,158,158,.12);color:#0D7E7E;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:600;margin-left:8px}
+.wrap{display:grid;grid-template-columns:260px 1fr;gap:24px;max-width:1080px;margin:0 auto;padding:0 24px 80px}
+nav ol{list-style:none;margin:0;padding:0;position:sticky;top:16px}
+nav li{margin:2px 0}
+nav button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;width:100%;padding:8px 10px;border-radius:10px;color:var(--body)}
+nav button:hover{background:rgba(26,158,158,.1)}
+nav button[aria-current=step]{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(13,31,45,.12)}
+nav .n{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:50%;background:var(--line);font-size:.8rem;font-weight:700;color:var(--ink)}
+nav .done .n{background:var(--cyan);color:#fff}
+main{background:var(--card);border-radius:16px;padding:32px;box-shadow:0 2px 12px rgba(13,31,45,.08);min-height:420px}
+h1{font:700 1.8rem/1.2 Outfit,sans-serif;color:var(--ink);margin:0 0 6px}
+h2{font:600 1.1rem Outfit,sans-serif;color:var(--ink);margin:24px 0 6px}
+.sub{margin:0 0 20px;color:var(--body)}
+ol.steps{padding-left:22px}ol.steps li{margin:8px 0}
+label.f{display:block;font-weight:600;color:var(--ink);margin-top:16px}
+input[type=text],input[type=url],input[type=email]{width:100%;font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:10px;margin-top:4px;color:var(--ink)}
+input:focus{outline:none;border-color:var(--cyan)}
+.hintx{font-size:.88rem;color:var(--body);margin-top:4px}
+.btn{font:600 1rem Inter,sans-serif;border-radius:10px;padding:10px 18px;border:2px solid var(--cyan);background:var(--cyan);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.s{background:#fff;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.note{border-left:4px solid var(--purple);background:rgba(124,58,237,.06);padding:10px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+.res{margin-top:10px;font-weight:600}.res.ok{color:var(--ok)}.res.bad{color:var(--err)}
+code,.copy{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:#EAF2F2;padding:1px 6px;border-radius:6px;color:var(--ink);word-break:break-all}
+.copybox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:8px}
+th,td{border-bottom:1px solid var(--line);text-align:left;padding:6px 8px;vertical-align:top}
+th{color:var(--ink)}
+.chk{display:flex;gap:10px;align-items:flex-start;margin:10px 0}
+.chk input{margin-top:5px;width:18px;height:18px}
+.foot{display:flex;justify-content:space-between;margin-top:32px;gap:10px}
+.v{font-weight:600;color:var(--ink)}
+.vals{margin-top:20px;font-size:.88rem;color:var(--body)}
+:focus-visible{outline:3px solid var(--purple);outline-offset:2px}
+@media(max-width:820px){.wrap{grid-template-columns:1fr}nav ol{position:static;display:flex;overflow:auto;gap:4px}nav button span.t{display:none}main{padding:22px}}
+</style>
+</head>
+<body>
+<header>
+  <div><strong>Forms Engine</strong><span class="badge">Setup wizard v1.0.0</span></div>
+  <div><a href="versions.html">Version history</a> &middot; <button class="btn s" id="reset" type="button">Start over</button></div>
+</header>
+<div class="wrap">
+  <nav aria-label="Setup steps"><ol id="nav"></ol></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<script>
+(function () {
+'use strict';
+var TEMPLATE_ID = '1W9iea0-AVzgc_RjnLsamp3fsywPC_HDlKajNCpnfNrw';
+var KEY = 'rerev-forms-engine-wizard-v1';
+var state = load();
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || { step: 0, vals: {}, checks: {} }; } catch (e) { return { step: 0, vals: {}, checks: {} }; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function v(k) { return state.vals[k] || ''; }
+var URL_RE = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
+
+var STEPS = [
+ { t: 'Start', h: function () { return '<h1>Build your own forms engine</h1><p class="sub">You get a Typeform-style form builder. Your Google Sheet is the backend. Setup takes about 15 minutes.</p>' +
+   '<h2>You need</h2><ol class="steps"><li>A Google account.</li><li>A place to host one web page. A free Netlify account works.</li></ol>' +
+   '<label class="f" for="brand">Your business name</label><input type="text" id="brand" data-k="brand" autocomplete="organization">' +
+   '<label class="f" for="email">Your Google account email</label><input type="email" id="email" data-k="email" autocomplete="email">' +
+   '<p class="hintx">The wizard holds what you type. You enter each value once.</p>'; } },
+ { t: 'Copy the Sheet', h: function () { return '<h1>Make your copy of the Sheet</h1><p class="sub">The Sheet holds your forms, questions and answers. The script is inside it. One copy gives you both.</p>' +
+   '<div class="row"><a class="btn" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/' + TEMPLATE_ID + '/copy">Make my copy</a></div>' +
+   '<ol class="steps"><li>Click <b>Make my copy</b>. Sign in with <span class="v" data-k="email">your Google account</span>.</li><li>Name the copy <code>Forms Engine - <span class="v" data-k="brand">your business</span></code>.</li><li>Click <b>Make a copy</b>.</li></ol>' +
+   '<div class="note">If Google says you need access, ask the person who sent you this wizard to share the template with your email.</div>' + chk('copied', 'My copy is open in my Google account.'); } },
+ { t: 'Open the script', h: function () { return '<h1>Open the script</h1><ol class="steps"><li>In your new Sheet, click <b>Extensions</b>, then <b>Apps Script</b>.</li><li>A new tab opens. Look at the file list on the left.</li><li>You see these files: <code>Code</code>, <code>Data</code>, <code>Forms</code>, <code>Responses</code>, <code>Menu</code>, <code>Demo</code>.</li></ol>' +
+   '<div class="note">Do not change the code. You change forms in the Sheet only.</div>' + chk('files', 'I see the six files.'); } },
+ { t: 'Approve permissions', h: function () { return '<h1>Approve the permissions once</h1><p class="sub">Google asks you to approve the script one time. The script needs your Sheet, your Drive (for uploaded files) and email (for response alerts).</p>' +
+   '<ol class="steps"><li>In the Apps Script editor, pick <code>menuSetup</code> in the function list at the top.</li><li>Click <b>Run</b>.</li><li>Click <b>Review permissions</b> and choose your account.</li><li>If you see <b>Google hasn\'t verified this app</b>, click <b>Advanced</b>, then <b>Go to ReRev Forms Engine (unsafe)</b>. This is your own copy of the script.</li><li>Click <b>Allow</b>.</li><li>Go back to your Sheet. You see three new tabs: <b>Forms</b>, <b>Questions</b>, <b>Settings</b>.</li></ol>' +
+   chk('approved', 'I approved the permissions and I see the three tabs.'); } },
+ { t: 'Deploy the web app', h: function () { return '<h1>Deploy the web app</h1><ol class="steps"><li>In the Apps Script editor, click <b>Deploy</b>, then <b>New deployment</b>.</li><li>Click the gear icon and pick <b>Web app</b>.</li><li>Description: <code>Forms Engine v1.0.0</code>.</li><li>Execute as: <b>Me</b>.</li><li>Who has access: <b>Anyone</b>.</li><li>Click <b>Deploy</b>. Copy the <b>Web app URL</b>.</li></ol>' +
+   '<label class="f" for="wa">Paste the Web app URL</label><input type="url" id="wa" data-k="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">' +
+   '<div class="row"><button class="btn s" type="button" id="test-ping">Test the connection</button></div><div class="res" id="res-ping" role="status"></div>' +
+   '<div class="note">Anyone must be able to open the URL. The URL only serves your forms. It does not show your Sheet.</div>'; },
+   ok: function () { return URL_RE.test(v('webAppUrl')) ? '' : 'Paste a Web app URL that ends in /exec.'; }, bind: function () { on('test-ping', 'click', testPing); } },
+ { t: 'Add demo forms', h: function () { return '<h1>Add the demo forms</h1><ol class="steps"><li>Go to your Sheet. Reload the page.</li><li>Click the new menu <b>Forms Engine</b>, then <b>2. Add demo forms</b>.</li><li>Click <b>Test the demo form</b> below.</li></ol>' +
+   '<div class="row"><button class="btn s" type="button" id="test-demo">Test the demo form</button></div><div class="res" id="res-demo" role="status"></div>' +
+   '<p class="hintx">You get two live forms. <code>all-types-demo</code> shows every question type. <code>quick-feedback</code> has four questions.</p>'; },
+   bind: function () { on('test-demo', 'click', testDemo); } },
+ { t: 'Make your form page', h: function () { return '<h1>Make your form page</h1><p class="sub">This one web page shows every form. The link decides which form opens.</p>' +
+   '<div class="row"><button class="btn" type="button" id="dl">Download my index.html</button></div><div class="res" id="res-dl" role="status"></div>' +
+   '<h2>Host it on Netlify</h2><ol class="steps"><li>Put <code>index.html</code> in a new empty folder.</li><li>Open <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">app.netlify.com/drop</a>.</li><li>Drag the folder onto the page.</li><li>Copy your new site address.</li></ol>' +
+   '<label class="f" for="pg">Your form page address</label><input type="url" id="pg" data-k="pageUrl" placeholder="https://your-site.netlify.app" autocomplete="off">'; },
+   bind: function () { on('dl', 'click', download); } },
+ { t: 'Connect the page', h: function () { return '<h1>Connect the page to the Sheet</h1><ol class="steps"><li>Open the <b>Settings</b> tab in your Sheet.</li><li>Find the row <code>FRONTEND_URL</code>.</li><li>Paste this value in the Value column:</li></ol>' + copybox('pageUrl') +
+   '<h2>Open a demo form</h2><div class="row"><a class="btn" id="open-demo" target="_blank" rel="noopener" href="#">Open quick-feedback</a></div>' +
+   '<p class="hintx">Answer it. Then look for the new tab <b>R_quick-feedback</b> in your Sheet.</p>'; },
+   bind: function () { var a = document.getElementById('open-demo'); if (a) a.href = (v('pageUrl') || '').replace(/\/$/, '') + '/?f=quick-feedback'; } },
+ { t: 'Build your first form', h: function () { return '<h1>Build your first form</h1><p class="sub">You build forms by adding rows. No code.</p>' +
+   '<ol class="steps"><li>In the <b>Forms</b> tab, add one row. Pick a short <b>FormID</b> with no spaces, for example <code>intake</code>. Set <b>Status</b> to <code>live</code>.</li><li>In the <b>Questions</b> tab, add one row per question. Use the same FormID. Set <b>Order</b> to 1, 2, 3 and so on. Give each question a unique <b>QuestionID</b>.</li><li>Pick a <b>Type</b> from the list.</li></ol>' +
+   '<label class="f" for="fid">Your FormID</label><input type="text" id="fid" data-k="formId" placeholder="intake" autocomplete="off">' +
+   '<h2>Your links</h2><div id="links"></div>' +
+   '<div class="note">A <b>draft</b> form is private. Open it with the preview link. A draft saves no answers. Set Status to <code>live</code> to collect answers. Set it to <code>closed</code> to stop.</div>'; },
+   bind: function () { renderLinks(); } },
+ { t: 'Question types', h: function () { return '<h1>Question types and logic</h1><p class="sub">Type these names in the <b>Type</b> column.</p><table><tr><th>Type</th><th>What it does</th></tr>' +
+   [['short_text, long_text', 'Free text. Use Placeholder for hint text.'], ['email, phone, url, number', 'Checked input. Number uses Min and Max.'], ['multiple_choice', 'One choice. Put options in Options, split by |. End an option with * for an Other box.'], ['checkbox', 'Many choices. Min and Max limit the count.'], ['dropdown', 'A list. Options split by |.'], ['yes_no', 'Two buttons.'], ['rating', 'Stars. Max sets the count (3 to 10).'], ['opinion_scale, nps', 'A number scale. Min, Max, LeftLabel, RightLabel. NPS is 0 to 10.'], ['ranking', 'Drag items into order.'], ['date, time', 'Date and time pickers.'], ['file_upload', 'Saves the file in your Drive. The Sheet gets the link. Limit 15 MB.'], ['matrix', 'Rows in Rows, columns in Options. Both split by |.'], ['picture_choice', 'Options as <code>Label~https://image-url</code>. Max above 1 allows many.'], ['legal', 'An accept box. Required means they must accept.'], ['signature', 'Draw a signature. Saved as an image in Drive.'], ['payment', 'A button that opens the link in the Link column (for example a Stripe payment link).'], ['welcome, statement', 'Text screens. No answer.']]
+   .map(function (r) { return '<tr><td><code>' + r[0] + '</code></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>' +
+   '<h2>Logic jumps</h2><p>Use the <b>Logic</b> column. Write rules like this:</p><p><code>q_budget = No =&gt; q_rate; q_size &gt; 50 =&gt; q_big</code></p><p>The rule reads: <i>if the answer to a question matches, jump to a later question</i>. You can use <code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code> and <code>contains</code>. Use <code>end</code> to finish the form. Jumps go forward only.</p>' +
+   '<h2>Use an earlier answer</h2><p>Write <code>{{q_name}}</code> in a Label. The form shows the answer there.</p>'; } },
+ { t: 'Go live', h: function () { return '<h1>Go live</h1><ol class="steps"><li>In your Sheet, click <b>Forms Engine</b>, then <b>3. Check all forms</b>. Fix anything it lists.</li><li>Open your form link. Answer it.</li><li>Open the tab <b>R_</b> plus your FormID. Your answer is there.</li><li>Optional: type your email in the <b>NotifyEmail</b> column to get an email for each response.</li></ol>' +
+   '<h2>If something fails</h2><table><tr><th>You see</th><th>Do this</th></tr><tr><td>Access Denied</td><td>Deploy again with <b>Who has access: Anyone</b>. Paste the new URL in the form page.</td></tr><tr><td>Form not found</td><td>Check the FormID in the link. It must match the Forms tab.</td></tr><tr><td>Form closed</td><td>Set Status to <code>live</code>.</td></tr><tr><td>Edit not visible</td><td>Wait 2 minutes, or use <b>Forms Engine &gt; Clear form cache</b>.</td></tr><tr><td>Answers do not save</td><td>Status must be <code>live</code>. A preview never saves.</td></tr></table>' +
+   '<div class="note">You can run many forms at once. Each form has its own FormID and its own answer tab.</div>' + chk('live', 'My first form collects answers.'); } }
+];
+
+function chk(k, text) { return '<label class="chk"><input type="checkbox" data-c="' + k + '"><span>' + text + '</span></label>'; }
+function copybox(k) { return '<div class="copybox"><span class="copy" data-k="' + k + '"></span><button class="btn s" type="button" data-copy="' + k + '">Copy</button></div>'; }
+function on(id, ev, fn) { var e = document.getElementById(id); if (e) e.addEventListener(ev, fn); }
+function setRes(id, ok, text) { var e = document.getElementById(id); if (e) { e.className = 'res ' + (ok ? 'ok' : 'bad'); e.textContent = text; } }
+
+async function testPing() {
+  setRes('res-ping', true, 'Testing...');
+  if (!URL_RE.test(v('webAppUrl'))) return setRes('res-ping', false, 'The URL must start with https://script.google.com/macros/s/ and end with /exec.');
+  try { var j = await (await fetch(v('webAppUrl') + '?action=ping')).json(); setRes('res-ping', !!j.ok, j.ok ? 'Connected. Engine version ' + j.version + '.' : 'The URL answered, but not as the Forms Engine.'); }
+  catch (e) { setRes('res-ping', false, 'Could not connect. Check that Who has access is Anyone and that you approved the permissions.'); }
+}
+async function testDemo() {
+  setRes('res-demo', true, 'Testing...');
+  try { var j = await (await fetch(v('webAppUrl') + '?action=form&id=quick-feedback')).json(); setRes('res-demo', !!j.ok, j.ok ? 'Found "' + j.form.title + '" with ' + j.questions.length + ' questions.' : 'Not found. Run Forms Engine > Add demo forms in your Sheet.'); }
+  catch (e) { setRes('res-demo', false, 'Could not connect. Go back to the deploy step.'); }
+}
+async function download() {
+  try {
+    var t = await (await fetch('form-template.html')).text();
+    var out = t.replace('__API_BASE__', v('webAppUrl'));
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out], { type: 'text/html' })); a.download = 'index.html'; document.body.append(a); a.click(); a.remove();
+    setRes('res-dl', true, 'Downloaded. This file already has your web app URL inside.');
+  } catch (e) { setRes('res-dl', false, 'Could not build the file. Reload this page and try again.'); }
+}
+function renderLinks() {
+  var box = document.getElementById('links'); if (!box) return;
+  var base = (v('pageUrl') || 'https://your-site.netlify.app').replace(/\/$/, ''), id = v('formId') || 'intake';
+  box.replaceChildren();
+  [['Live link (share this)', base + '/?f=' + encodeURIComponent(id)], ['Preview link (draft forms)', base + '/?f=' + encodeURIComponent(id) + '&key=YOUR_PREVIEW_KEY']].forEach(function (p) {
+    var d = document.createElement('div'); d.className = 'copybox';
+    var l = document.createElement('b'); l.textContent = p[0] + ': ';
+    var c = document.createElement('span'); c.className = 'copy'; c.textContent = p[1];
+    d.append(l, c); box.append(d);
+  });
+  var n = document.createElement('p'); n.className = 'hintx'; n.textContent = 'Your preview key is in the Settings tab, row PREVIEW_KEY. The menu Forms Engine > Show my form links lists every link.'; box.append(n);
+}
+
+function render() {
+  var s = STEPS[state.step], main = document.getElementById('main');
+  main.innerHTML = s.h(); // static markup from this file only; user values are set with textContent below
+  var foot = document.createElement('div'); foot.className = 'foot';
+  var back = document.createElement('button'); back.className = 'btn s'; back.type = 'button'; back.textContent = 'Back'; back.disabled = state.step === 0; back.onclick = function () { go(state.step - 1); };
+  var err = document.createElement('span'); err.className = 'res bad'; err.setAttribute('role', 'alert');
+  var nx = document.createElement('button'); nx.className = 'btn'; nx.type = 'button'; nx.textContent = state.step === STEPS.length - 1 ? 'Finish' : 'Next';
+  nx.onclick = function () { var m = s.ok ? s.ok() : ''; if (m) { err.textContent = m; return; } if (state.step === STEPS.length - 1) { done(); } else go(state.step + 1); };
+  foot.append(back, err, nx); main.append(foot);
+  main.querySelectorAll('input[data-k]').forEach(function (i) { i.value = v(i.dataset.k); i.addEventListener('input', function () { state.vals[i.dataset.k] = i.value.trim(); save(); fill(); if (s.bind) s.bind(); }); });
+  main.querySelectorAll('input[data-c]').forEach(function (i) { i.checked = !!state.checks[i.dataset.c]; i.addEventListener('change', function () { state.checks[i.dataset.c] = i.checked; save(); nav(); }); });
+  main.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', function () { navigator.clipboard.writeText(v(b.dataset.copy)).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); }); }); });
+  fill(); if (s.bind) s.bind(); nav(); main.focus({ preventScroll: true }); window.scrollTo(0, 0);
+}
+function fill() { document.querySelectorAll('.v[data-k],.copy[data-k]').forEach(function (e) { if (v(e.dataset.k)) e.textContent = v(e.dataset.k); }); }
+function nav() {
+  var ol = document.getElementById('nav'); ol.replaceChildren();
+  STEPS.forEach(function (s, i) {
+    var li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
+    if (i === state.step) b.setAttribute('aria-current', 'step'); if (i < state.step) b.className = 'done';
+    var n = document.createElement('span'); n.className = 'n'; n.textContent = i < state.step ? '✓' : String(i + 1);
+    var t = document.createElement('span'); t.className = 't'; t.textContent = s.t;
+    b.append(n, t); b.onclick = function () { go(i); }; li.append(b); ol.append(li);
+  });
+}
+function go(i) { state.step = Math.max(0, Math.min(STEPS.length - 1, i)); save(); render(); }
+function done() {
+  var main = document.getElementById('main');
+  main.innerHTML = '<h1>You are done</h1><p class="sub">Your forms engine is live. Add a form any time by adding rows to the Sheet.</p>';
+  var p = document.createElement('p'); p.textContent = 'Web app: ' + (v('webAppUrl') || '(not set)') + '. Form page: ' + (v('pageUrl') || '(not set)') + '.'; main.append(p);
+}
+document.getElementById('reset').addEventListener('click', function () { if (confirm('Clear everything you entered and start over?')) { state = { step: 0, vals: {}, checks: {} }; save(); render(); } });
+render();
+})();
+</script>
+</body>
+</html>
