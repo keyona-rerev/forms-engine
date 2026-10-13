@@ -1,7 +1,8 @@
 /**
  * Responses.gs — saves answers (partial or complete) and uploads.
  * One response tab per form (R_<FormID>). The form ID decides the tab, so forms never mix.
- * Response tabs are plain-text formatted, so values like =SUM() stay text.
+ * Response tabs are plain-text formatted. Values that start with = + - @ get a leading
+ * apostrophe so Sheets never runs them as formulas.
  */
 var MAX_UPLOAD_B64 = 20000000; // about 15 MB of file
 var BLOCKED_EXT = /\.(exe|bat|cmd|com|scr|js|jse|vbs|html?|svg|sh|msi|jar|ps1|apk|dll)$/i;
@@ -56,7 +57,7 @@ var Responses = {
       }
       vals[2] = complete ? 'complete' : 'partial';
       vals[3] = now;
-      Object.keys(clean).forEach(function (k) { if (tgt.cols[k]) vals[tgt.cols[k] - 1] = clean[k]; });
+      Object.keys(clean).forEach(function (k) { if (tgt.cols[k]) vals[tgt.cols[k] - 1] = safe_(clean[k]); });
       tgt.sheet.getRange(at > 0 ? at : tgt.sheet.getLastRow() + 1, 1, 1, width).setValues([vals]);
     } finally {
       lock.releaseLock();
@@ -110,7 +111,7 @@ function target_(d) {
     var start = Math.max(sh.getLastColumn(), base.length) + 1;
     if (sh.getMaxColumns() < start + add.length - 1) sh.insertColumnsAfter(sh.getMaxColumns(), start + add.length - 1 - sh.getMaxColumns());
     sh.getRange(1, start, sh.getMaxRows(), add.length).setNumberFormat('@');
-    sh.getRange(1, start, 1, add.length).setValues([add.map(function (q) { return (q.label || q.id).slice(0, 80) + ' [' + q.id + ']'; })]).setFontWeight('bold');
+    sh.getRange(1, start, 1, add.length).setValues([add.map(function (q) { return safe_((q.label || q.id).slice(0, 80)) + ' [' + q.id + ']'; })]).setFontWeight('bold');
     add.forEach(function (q, i) { cols[q.id] = start + i; });
   }
   return { sheet: sh, cols: cols };
@@ -121,6 +122,12 @@ function norm_(q, v) {
   if (Array.isArray(v)) return v.map(String).join(q.type === 'ranking' ? ' > ' : ' | ').slice(0, 5000);
   if (typeof v === 'object') return Object.keys(v).map(function (k) { return k + ': ' + v[k]; }).join('; ').slice(0, 5000);
   return String(v).slice(0, 10000);
+}
+
+/** A leading apostrophe makes Sheets store the value as text, so answers never run as formulas. */
+function safe_(s) {
+  s = String(s);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
 
 function folder_(formId) {

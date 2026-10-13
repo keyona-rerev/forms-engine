@@ -2,7 +2,7 @@
 
 ReRev Forms Engine. A Typeform-style form system. A Google Sheet is the backend. One Apps Script serves many live forms.
 
-Version: 1.0.0
+Version: 1.0.1
 
 ## Parts
 
