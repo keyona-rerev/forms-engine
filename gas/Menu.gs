@@ -11,6 +11,8 @@ function onOpen() {
       .addItem('Clear form cache', 'menuClearCache')
       .addSeparator()
       .addItem('Run diagnostics', 'runDiagnostics')
+      .addItem('Turn on hourly health check', 'menuHealthOn')
+      .addItem('Turn off hourly health check', 'menuHealthOff')
       .addToUi();
   } catch (e) {}
   try { PropertiesService.getScriptProperties().setProperty('SS_ID', SpreadsheetApp.getActiveSpreadsheet().getId()); } catch (e) {}
