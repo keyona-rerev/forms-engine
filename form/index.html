@@ -73,6 +73,8 @@ canvas.sig{width:100%;height:180px;background:#fff;border:2px solid var(--line);
 .actions{display:flex;align-items:center;gap:16px;margin-top:28px;flex-wrap:wrap}
 .btn,.ok{font:inherit;font-weight:600;font-size:1.05rem;min-height:48px;padding:10px 22px;border-radius:10px;border:2px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
 .btn.secondary{background:transparent;color:var(--text)}
+.desc a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;word-break:break-word}
+.linkbtn{margin-top:4px}
 .btn:disabled,.ok:disabled{opacity:.6;cursor:wait}
 .hint{color:var(--muted);font-size:.9rem}
 @media (hover:none){.hint{display:none}}
@@ -123,6 +125,21 @@ function pipe(t) {
   return String(t || '').replace(/\{\{\s*([\w-]+)\s*\}\}/g, (m, k) => {
     const v = answers[k]; return v == null ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? '' : String(v);
   });
+}
+// Turns http(s) addresses in plain text into safe links. No innerHTML. Other schemes never become links.
+function linkify(text) {
+  const s = String(text == null ? '' : text), out = [], re = /https?:\/\/[^\s<>"']+/gi;
+  let last = 0, m;
+  while ((m = re.exec(s))) {
+    let url = m[0], tail = '';
+    while (/[.,;:!?)\]]$/.test(url)) { tail = url.slice(-1) + tail; url = url.slice(0, -1); }
+    if (m.index > last) out.push(s.slice(last, m.index));
+    out.push(h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, url));
+    if (tail) out.push(tail);
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) out.push(s.slice(last));
+  return out;
 }
 async function post(body) {
   const r = await fetch(API_BASE, { method: 'POST', body: JSON.stringify(body) });
@@ -190,7 +207,7 @@ function show(i, dir) {
   const scr = h('section', { class: 'screen' + (dir === 'back' ? ' back' : ''), 'aria-labelledby': 'lbl' },
     lay ? null : h('div', { class: 'qnum' }, nonLayoutNumber(i) + ' →'),
     h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, pipe(qn.label), qn.required && !lay ? [h('span', { class: 'req', 'aria-hidden': 'true' }, '*'), h('span', { class: 'sr' }, ' (required)')] : null),
-    qn.description ? h('p', { class: 'desc', id: 'desc' }, pipe(qn.description)) : null,
+    qn.description ? h('p', { class: 'desc', id: 'desc' }, linkify(pipe(qn.description))) : null,
     widget.el,
     h('div', { class: 'err', id: 'err', role: 'alert' }),
     h('div', { class: 'actions' }, ok, h('span', { class: 'hint' }, 'press Enter ↵')));
@@ -296,7 +313,7 @@ function finish() {
   done = true; clearTimeout(saveTimer); try { sessionStorage.removeItem(SK); } catch (e) {}
   progress(); document.getElementById('back').hidden = true;
   stage.replaceChildren(h('section', { class: 'screen' }, h('div', { class: 'check', 'aria-hidden': 'true' }, '✓'),
-    h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, form.thankYouTitle), h('p', { class: 'desc' }, pipe(form.thankYouText)),
+    h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, form.thankYouTitle), h('p', { class: 'desc' }, linkify(pipe(form.thankYouText))),
     form.redirectUrl ? h('a', { class: 'btn', href: form.redirectUrl }, 'Continue') : null));
   document.getElementById('lbl').focus({ preventScroll: true });
   if (form.redirectUrl && !preview) setTimeout(() => { location.href = form.redirectUrl; }, 5000);
@@ -341,7 +358,10 @@ W.long_text = (qn, cur) => {
   return { el: h('div', null, t, h('div', { class: 'hint' }, 'Shift+Enter adds a new line')), get: () => t.value.trim(), focus: () => t.focus() };
 };
 W.welcome = () => ({ el: document.createComment(''), get: () => null });
-W.statement = W.welcome;
+// A statement with a Link shows a button. The button text comes from the Placeholder column.
+W.statement = (qn) => qn.link
+  ? { el: h('div', { class: 'linkbtn' }, h('a', { class: 'btn', href: qn.link, target: '_blank', rel: 'noopener noreferrer' }, qn.placeholder || 'Open link')), get: () => null }
+  : W.welcome();
 W.dropdown = (qn, cur) => {
   const s = h('select', { class: 'line', id: 'in', 'aria-labelledby': 'lbl' }, h('option', { value: '' }, 'Choose an option'), qn.options.map(o => h('option', { value: o }, o)));
   s.value = cur || '';
