@@ -9,6 +9,8 @@ function onOpen() {
       .addItem('3. Check all forms', 'menuCheck')
       .addItem('4. Show my form links', 'menuLinks')
       .addItem('Clear form cache', 'menuClearCache')
+      .addSeparator()
+      .addItem('Run diagnostics', 'runDiagnostics')
       .addToUi();
   } catch (e) {}
   try { PropertiesService.getScriptProperties().setProperty('SS_ID', SpreadsheetApp.getActiveSpreadsheet().getId()); } catch (e) {}
