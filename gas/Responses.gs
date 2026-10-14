@@ -3,6 +3,8 @@
  * One response tab per form (R_<FormID>). The form ID decides the tab, so forms never mix.
  * Response tabs are plain-text formatted. Values that start with = + - @ get a leading
  * apostrophe so Sheets never runs them as formulas.
+ * Google calls that fail for a short time are retried with backoff (retry_).
+ * Uploads go to Drive by default. Settings tab key UPLOAD_STORAGE: drive (default), cloudinary, auto.
  */
 var MAX_UPLOAD_B64 = 20000000; // about 15 MB of file
 var BLOCKED_EXT = /\.(exe|bat|cmd|com|scr|js|jse|vbs|html?|svg|sh|msi|jar|ps1|apk|dll)$/i;
@@ -38,8 +40,10 @@ var Responses = {
 
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
-    var wasComplete = false;
+    var wasComplete = false, late = false;
     try {
+      retry_(function () {
+      wasComplete = false; late = false;
       var tgt = target_(d);
       var row = tgt.sheet.getLastRow() > 1 ? tgt.sheet.getRange(2, 2, tgt.sheet.getLastRow() - 1, 1).getValues() : [];
       var at = -1;
@@ -50,7 +54,7 @@ var Responses = {
       if (at > 0) {
         vals = tgt.sheet.getRange(at, 1, 1, width).getValues()[0].map(String);
         wasComplete = vals[2] === 'complete';
-        if (wasComplete && !complete) return { ok: true, status: 'complete' }; // late partial: keep final answers
+        if (wasComplete && !complete) { late = true; return; } // late partial: keep final answers
       } else {
         vals = []; for (var c = 0; c < width; c++) vals.push('');
         vals[0] = now; vals[1] = sid;
@@ -59,9 +63,14 @@ var Responses = {
       vals[3] = now;
       Object.keys(clean).forEach(function (k) { if (tgt.cols[k]) vals[tgt.cols[k] - 1] = safe_(clean[k]); });
       tgt.sheet.getRange(at > 0 ? at : tgt.sheet.getLastRow() + 1, 1, 1, width).setValues([vals]);
+      });
+    } catch (err) {
+      console.error('save failed: ' + errMsg_(err));
+      return { ok: false, error: 'storage_unavailable' };
     } finally {
       lock.releaseLock();
     }
+    if (late) return { ok: true, status: 'complete' };
     if (complete && !wasComplete) notify_(d, clean);
     return { ok: true, status: complete ? 'complete' : 'partial' };
   },
@@ -84,15 +93,20 @@ var Responses = {
     if (q.type === 'signature') { name = 'signature.png'; mime = 'image/png'; }
     if (BLOCKED_EXT.test(name)) return { ok: false, error: 'file_type_blocked' };
 
-    try {
-      var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, sid.slice(0, 8) + '_' + q.id + '_' + name);
-      var file = folder_(d.priv.formId).createFile(blob);
-      return { ok: true, url: file.getUrl(), name: name };
-    } catch (err) {
-      // Drive refused the file (storage full or a Drive limit). Log it. Tell the page in plain terms.
-      console.error('upload failed: ' + (err && err.message ? err.message : err));
-      return { ok: false, error: 'storage_unavailable' };
+    var mode = String(Data.setting('UPLOAD_STORAGE') || 'drive').toLowerCase();
+    var order = mode === 'cloudinary' ? ['cloudinary', 'drive'] : mode === 'auto' ? ['drive', 'cloudinary'] : ['drive'];
+    var fileName = sid.slice(0, 8) + '_' + q.id + '_' + name;
+    for (var k = 0; k < order.length; k++) {
+      try {
+        var url = order[k] === 'drive'
+          ? retry_(function () { return driveSave_(b64, mime, fileName, d.priv.formId); })
+          : cloudSave_(b64, mime, d.priv.formId);
+        return { ok: true, url: url, name: name };
+      } catch (err) {
+        console.error('upload to ' + order[k] + ' failed: ' + errMsg_(err));
+      }
     }
+    return { ok: false, error: 'storage_unavailable' };
   }
 };
 
@@ -156,4 +170,39 @@ function notify_(d, clean) {
     });
     MailApp.sendEmail(d.priv.notify, 'New response: ' + d.pub.title, lines.join('\n\n'));
   } catch (e) { console.error('notify failed', e); }
+}
+
+/** Run fn. If Google fails for a short time, wait and try again (3 retries, growing waits). */
+function retry_(fn) {
+  var waits = [400, 1200, 3000];
+  for (var i = 0; ; i++) {
+    try { return fn(); } catch (err) {
+      if (i >= waits.length || !transient_(err)) throw err;
+      Utilities.sleep(waits[i] + Math.floor(Math.random() * 200));
+    }
+  }
+}
+
+function transient_(err) {
+  return /limit exceeded|too many times|rate limit|temporar|try again|internal error|timed out|unavailable|server error|service error|backend/i.test(errMsg_(err));
+}
+
+function errMsg_(err) { return err && err.message ? err.message : String(err); }
+
+function driveSave_(b64, mime, fileName, formId) {
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, fileName);
+  return folder_(formId).createFile(blob).getUrl();
+}
+
+/** Unsigned Cloudinary upload. Needs Settings: CLOUDINARY_CLOUD and CLOUDINARY_PRESET (an unsigned preset). No secret is stored. */
+function cloudSave_(b64, mime, formId) {
+  var cloud = String(Data.setting('CLOUDINARY_CLOUD') || ''), preset = String(Data.setting('CLOUDINARY_PRESET') || '');
+  if (!cloud || !preset) throw new Error('Cloudinary is not set up in the Settings tab');
+  var r = UrlFetchApp.fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cloud) + '/auto/upload', {
+    method: 'post', muteHttpExceptions: true,
+    payload: { file: 'data:' + mime + ';base64,' + b64, upload_preset: preset, folder: 'form-uploads/' + formId, public_id: Utilities.getUuid() }
+  });
+  var code = r.getResponseCode(), body = r.getContentText();
+  if (code !== 200) throw new Error('Cloudinary HTTP ' + code + ' ' + body.slice(0, 200));
+  return JSON.parse(body).secure_url;
 }

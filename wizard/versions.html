@@ -21,8 +21,13 @@ a{color:#7C3AED;font-weight:600}
   <h1>Version history</h1>
   <p>This page lists what changed in each version and what to do to upgrade. New clients do not need it. Their copy is already current.</p>
   <div class="card">
-    <h2>Add-on, 2026-10-14 <span class="tag">Current</span></h2>
-    <p><b>What changed:</b> Two new items in the Forms Engine menu: <b>Run diagnostics</b> (12 tests of Drive and Sheets) and <b>Turn on hourly health check</b> (adds a Health log tab). The wizard has two new steps: Brand your forms, and Keep it healthy. The script version number stays 1.0.2.</p>
+    <h2>v1.0.3 <span class="tag">Current</span></h2>
+    <p><b>What changed:</b> Saves and uploads now try again (up to 3 times, with growing waits) when Google fails for a short time. If Google still refuses, the form shows a clear message instead of an error page. New optional setting: send uploads to Cloudinary instead of Drive. Add three rows to the Settings tab: <code>UPLOAD_STORAGE</code> (drive, cloudinary or auto), <code>CLOUDINARY_CLOUD</code>, and <code>CLOUDINARY_PRESET</code> (an unsigned upload preset). Drive stays the default. Note: Cloudinary files can be opened by anyone who has the link.</p>
+    <p><b>To upgrade:</b> Replace Code.gs and Responses.gs from the repo (gas folder). Click Deploy, then New deployment, then Web app. Copy the new web app URL into your form page.</p>
+  </div>
+  <div class="card">
+    <h2>Add-on, 2026-10-14</h2>
+    <p><b>What changed:</b> Two new items in the Forms Engine menu: <b>Run diagnostics</b> (12 tests of Drive and Sheets) and <b>Turn on hourly health check</b> (adds a Health log tab). The wizard has two new steps: Brand your forms, and Keep it healthy. The script version number stayed 1.0.2.</p>
     <p><b>To upgrade:</b> Add the new file Diag.gs. Replace Menu.gs and appsscript.json from the repo (gas folder). In the Apps Script editor, click Project Settings and turn on <b>Show appsscript.json manifest file</b> to edit it. No new deployment is needed.</p>
   </div>
   <div class="card">
