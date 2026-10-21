@@ -302,21 +302,24 @@ async function submit() {
   if (preview) { finish(); return true; }
   try {
     const r = await post({ action: 'save', formId: FORM_ID, sessionId: sid, answers: pick(v), visited: v, complete: true, hp: (document.querySelector('.hp') || {}).value || '' });
-    if (r.ok) { finish(); return true; }
+    if (r.ok) { finish(r.result); return true; }
     if (r.error === 'required') { const j = qs.findIndex(x => x.id === r.questionId); if (j >= 0) { show(j, 'back'); setErr('This question is required.'); } return false; }
     if (r.error === 'closed') { msg('Form closed', 'This form is no longer accepting responses.'); return false; }
     setErr('We could not save your answers. Try again.');
   } catch (e) { setErr('No connection. Your answers are kept. Try again.'); }
   return false;
 }
-function finish() {
+function finish(result) {
+  const rs = result && result.title ? result : null;
+  const rsUrl = rs && /^https:\/\//i.test(String(rs.buttonUrl || '')) ? rs.buttonUrl : '';
   done = true; clearTimeout(saveTimer); try { sessionStorage.removeItem(SK); } catch (e) {}
   progress(); document.getElementById('back').hidden = true;
   stage.replaceChildren(h('section', { class: 'screen' }, h('div', { class: 'check', 'aria-hidden': 'true' }, '✓'),
-    h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, form.thankYouTitle), h('p', { class: 'desc' }, linkify(pipe(form.thankYouText))),
+    h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, rs ? rs.title : form.thankYouTitle), h('p', { class: 'desc' }, linkify(rs ? rs.text : pipe(form.thankYouText))),
+    rs ? (rsUrl ? h('a', { class: 'btn', href: rsUrl, target: '_blank', rel: 'noopener noreferrer' }, rs.buttonLabel || 'Continue') : null) :
     form.redirectUrl ? h('a', { class: 'btn', href: form.redirectUrl }, 'Continue') : null));
   document.getElementById('lbl').focus({ preventScroll: true });
-  if (form.redirectUrl && !preview) setTimeout(() => { location.href = form.redirectUrl; }, 5000);
+  if (!rs && form.redirectUrl && !preview) setTimeout(() => { location.href = form.redirectUrl; }, 5000);
 }
 function persist(n) { if (preview) return; try { sessionStorage.setItem(SK, JSON.stringify({ sid, answers, trail, idx: n })); } catch (e) {} }
 function restore() {
