@@ -71,8 +71,16 @@ var Responses = {
       lock.releaseLock();
     }
     if (late) return { ok: true, status: 'complete' };
-    if (complete && !wasComplete) notify_(d, clean);
-    return { ok: true, status: complete ? 'complete' : 'partial' };
+    // Free Build campaign: score, email, and return a result screen. Never fail the save over this.
+    var result = null;
+    if (complete && Letstalk.handles(d.priv.formId)) {
+      try { result = wasComplete ? Letstalk.again(d, clean, sid) : Letstalk.process(d, clean, sid); }
+      catch (err2) { console.error('letstalk failed: ' + errMsg_(err2)); result = null; }
+    }
+    if (complete && !wasComplete && !result) notify_(d, clean);
+    var out = { ok: true, status: complete ? 'complete' : 'partial' };
+    if (result) out.result = result;
+    return out;
   },
 
   upload: function (p) {
