@@ -81,7 +81,7 @@ canvas.sig{width:100%;height:180px;background:#fff;border:2px solid var(--line);
 .err{color:var(--err);margin-top:14px;font-weight:600;min-height:1.2em}
 .banner{position:fixed;bottom:0;left:0;right:0;background:var(--text);color:var(--bg);text-align:center;padding:8px;font-size:.9rem;z-index:6}
 .check{width:72px;height:72px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:2.2rem;margin-bottom:20px}
-.outcome{width:100%;max-width:560px;margin:0 auto;background:#fff;color:#0D1F2D;border:1px solid var(--line);border-top:6px solid var(--accent);border-radius:16px;padding:clamp(24px,6vw,40px);animation:up .35s ease both}
+.outcome{width:100%;max-width:560px;margin:16px auto 0;background:#fff;color:#0D1F2D;border:1px solid var(--line);border-top:6px solid var(--accent);border-radius:16px;padding:clamp(24px,6vw,40px);animation:up .35s ease both}
 .outcome .chip{display:inline-block;font-size:.78rem;line-height:1.2;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:999px;margin:0 0 18px;background:color-mix(in srgb,var(--accent) 18%,#fff);color:#0D1F2D}
 .outcome .label{font-size:clamp(1.6rem,6vw,2.1rem);margin:0 0 14px;color:#0D1F2D;overflow-wrap:anywhere}
 .outcome .desc{font-size:1.06rem;line-height:1.65;color:#3D5166;margin:0 0 14px;overflow-wrap:anywhere}
@@ -336,7 +336,8 @@ function reportHeight(card) {
   if (window.parent === window) return;
   const send = () => {
     const top = document.getElementById('top'), cs = getComputedStyle(stage);
-    const hgt = Math.ceil(top.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + card.offsetHeight);
+    // 56px of room under the card keeps host badges (for example Netlify's "Powered by" pill) from covering it.
+    const hgt = Math.ceil(top.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + card.offsetHeight + parseFloat(getComputedStyle(card).marginTop) + 56);
     try { window.parent.postMessage({ type: 'rerev-form-outcome', formId: FORM_ID, height: hgt }, '*'); } catch (e) {}
   };
   send();
@@ -357,6 +358,7 @@ function finish(result) {
       paras.map(p => h('p', { class: 'desc' }, linkify(p))),
       rsUrl ? h('a', { class: 'btn', href: rsUrl, target: '_blank', rel: 'noopener noreferrer' }, rs.buttonLabel || 'Continue') : null);
     stage.replaceChildren(card);
+    if (window.parent !== window) document.getElementById('top').style.display = 'none'; // no empty header strip inside an embed
     reportHeight(card);
   } else {
     stage.replaceChildren(h('section', { class: 'screen' }, h('div', { class: 'check', 'aria-hidden': 'true' }, '✓'),
