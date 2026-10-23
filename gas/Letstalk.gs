@@ -37,6 +37,8 @@ var LETSTALK = {
   DEPOSIT_ENABLED: false,
   DEPOSIT_AMOUNT: 100,
   SEND_NOT_FIT_EMAIL: true,
+  // Submissions whose name or company starts with this text are tests. Their emails get a [TEST] subject prefix and a TEST banner.
+  TEST_MARKER: 'SYNTHETIC TEST',
   // Links and people
   OWNER_EMAIL: 'keyona@rerev.io',
   NEWSLETTER_URL: 'https://keyonameeks.substack.com',
@@ -252,13 +254,20 @@ var Letstalk = {
     try { return fn(); } catch (e) { console.error('letstalk html build failed: ' + errMsg_(e)); return ''; }
   },
 
+  isTest_: function (a) {
+    var m = String(LETSTALK.TEST_MARKER || '').toLowerCase();
+    if (!m) return false;
+    return String(a.q_name || '').trim().toLowerCase().indexOf(m) === 0 || String(a.q_company || '').trim().toLowerCase().indexOf(m) === 0;
+  },
+
   emails_: function (d, a, res, screen, row) {
     var L = LETSTALK, v = this.vars_(a), email = String(a.q_email || '').trim();
+    var test = this.isTest_(a), tSub = test ? '[TEST] ' : '', tTxt = test ? 'TEST EMAIL: synthetic submission, not a real applicant.\n\n' : '';
     var okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 
     if (res.status === 'qualified' && okEmail && screen.buttonUrl) {
-      this.send_(email, 'Your ReRev free build: book your session',
-        'Hi ' + v.first + ',\n\n' +
+      this.send_(email, tSub + 'Your ReRev free build: book your session',
+        tTxt + 'Hi ' + v.first + ',\n\n' +
         "Thanks for applying. You're one of our 10 free builds.\n\n" +
         'Book your 60-minute session here: ' + screen.buttonUrl + '\n\n' +
         'How it goes: in the first 20 minutes I install and customize your ' + v.toolName + ' on your own accounts. ' +
@@ -266,17 +275,17 @@ var Letstalk = {
         "That's the trade, and there's no pitch.\n\n" +
         'Before the call, please have access to ' + v.access + ' so we can install live.\n\n' +
         'See you soon,\nKeyona\nReRev Labs · rerev.io',
-        this.html_(function () { return LetstalkMail.qualified(v, screen.buttonUrl); }));
+        this.html_(function () { return LetstalkMail.qualified(v, screen.buttonUrl, test); }));
     }
 
     if (res.status === 'not_fit' && okEmail && L.SEND_NOT_FIT_EMAIL) {
-      this.send_(email, "Thanks for applying to ReRev's free build",
-        'Hi ' + v.first + ',\n\n' +
+      this.send_(email, tSub + "Thanks for applying to ReRev's free build",
+        tTxt + 'Hi ' + v.first + ',\n\n' +
         'Thanks for applying. This round is for teams planning to invest in automation in the next 90 days, so it isn\'t the right fit yet.\n\n' +
         'In the meantime, our newsletter shares the systems we build for small teams, free: ' + L.NEWSLETTER_URL +
         (L.DIY_URL ? '\nHere\'s a free guide to get started: ' + L.DIY_URL : '') + '\n\n' +
         'Keyona\nReRev Labs · rerev.io',
-        this.html_(function () { return LetstalkMail.notFit(v, L.NEWSLETTER_URL, L.DIY_URL); }));
+        this.html_(function () { return LetstalkMail.notFit(v, L.NEWSLETTER_URL, L.DIY_URL, test); }));
     }
 
     if (res.status === 'qualified' || res.status === 'review') {
@@ -302,13 +311,15 @@ var Letstalk = {
       }
       if (res.status === 'review') lines.push('', 'To approve: reply to ' + email + ' with your booking link.');
       lines.push('', 'Sheet row: ' + link);
+      lines.unshift('INTERNAL NOTIFICATION (not sent to the applicant)', '');
+      if (test) lines.unshift('TEST EMAIL: synthetic submission, not a real applicant.', '');
       this.send_(L.OWNER_EMAIL,
-        '[Free build] ' + res.status + ': ' + v.company + ' (' + (a.q_budget || '?') + ', ' + (a.q_timeline || '?') + '), score ' + res.priority,
+        tSub + '[Free build] ' + res.status + ': ' + v.company + ' (' + (a.q_budget || '?') + ', ' + (a.q_timeline || '?') + '), score ' + res.priority,
         lines.join('\n'),
         this.html_(function () {
           return LetstalkMail.owner({
             status: res.status, reasons: res.reasons, priority: res.priority, company: v.company,
-            rows: rows, noBooking: noBooking, approveEmail: res.status === 'review' ? email : '', sheetLink: link
+            rows: rows, noBooking: noBooking, approveEmail: res.status === 'review' ? email : '', sheetLink: link, test: test
           });
         }));
     }
