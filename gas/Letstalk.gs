@@ -4,6 +4,8 @@
  * for LETSTALK.FORM_ID. Partial saves are never scored and never send email.
  * The booking link lives in Script Properties or the Settings tab. It never
  * reaches the public form JSON.
+ * HTML layouts for the emails live in LetstalkMail.gs. Every email still sends
+ * the plain-text body as the fallback.
  */
 
 // ===== Free Build campaign: qualification rules (edit freely) =====
@@ -12,24 +14,24 @@ var LETSTALK = {
   // Who counts as a decision-maker (answers to q_approve)
   APPROVER_ANSWERS: ['Yes, I make the call', 'I share the decision with one other person'],
   // Budget: qualifies at or above this band
-  BUDGET_ORDER: ['Not yet', 'Under $1K', '$1K\u2013$2.5K', '$2.5K\u2013$5K', '$5K+'],
-  BUDGET_MIN: '$1K\u2013$2.5K',
+  BUDGET_ORDER: ['Not yet', 'Under $1K', '$1K–$2.5K', '$2.5K–$5K', '$5K+'],
+  BUDGET_MIN: '$1K–$2.5K',
   BUDGET_REVIEW: 'Under $1K',          // one band below the minimum goes to manual review
   // Timeline: qualifies within 90 days
-  TIMELINE_OK: ['This month', 'In 1\u20133 months'],
-  TIMELINE_REVIEW: 'In 3\u20136 months',
+  TIMELINE_OK: ['This month', 'In 1–3 months'],
+  TIMELINE_REVIEW: 'In 3–6 months',
   // A "real workflow" = at least this many characters in q_workflow
   WORKFLOW_MIN_CHARS: 40,
   // Hard no's
   EXCLUDED_ROLES: ['Student or job seeker'],
   EXCLUDED_STAGES: [],                 // e.g. ['Pre-revenue, not funded'] to tighten
   // Capacity
-  QUALIFIED_CAP: 15,   // after this many qualified applicants, new ones become "review"
+  QUALIFIED_CAP: 10,   // matches the public "10 free builds" promise. After this many qualified applicants, new ones become "review"
   // Priority score points
-  PTS_BUDGET: { 'Not yet': 0, 'Under $1K': 10, '$1K\u2013$2.5K': 25, '$2.5K\u2013$5K': 35, '$5K+': 40 },
-  PTS_TIMELINE: { 'This month': 25, 'In 1\u20133 months': 20, 'In 3\u20136 months': 5, 'Just exploring': 0 },
-  PTS_HOURS: { 'Under 2': 0, '2\u20135': 10, '5\u201310': 15, '10+': 20 },
-  PTS_TEAM: { 'Just me': 5, '2\u201310': 10, '11\u201350': 15, '51\u2013200': 15, '200+': 15 },
+  PTS_BUDGET: { 'Not yet': 0, 'Under $1K': 10, '$1K–$2.5K': 25, '$2.5K–$5K': 35, '$5K+': 40 },
+  PTS_TIMELINE: { 'This month': 25, 'In 1–3 months': 20, 'In 3–6 months': 5, 'Just exploring': 0 },
+  PTS_HOURS: { 'Under 2': 0, '2–5': 10, '5–10': 15, '10+': 20 },
+  PTS_TEAM: { 'Just me': 5, '2–10': 10, '11–50': 15, '51–200': 15, '200+': 15 },
   PTS_FOUNDER: 5,
   // Deposit variant (off by default)
   DEPOSIT_ENABLED: false,
@@ -103,7 +105,7 @@ var Letstalk = {
       else if (hard.indexOf('no budget yet') < 0) hard.push('budget well below min');
     }
     if (L.TIMELINE_OK.indexOf(tl) < 0) {
-      if (tl === L.TIMELINE_REVIEW) miss.push('timeline 3\u20136 mo');
+      if (tl === L.TIMELINE_REVIEW) miss.push('timeline 3–6 mo');
       else hard.push('timeline: ' + (tl || 'missing'));
     }
     if (wf.length < L.WORKFLOW_MIN_CHARS) miss.push('workflow answer too short');
@@ -229,11 +231,25 @@ var Letstalk = {
   },
 
   /* ---------- email ---------- */
-  send_: function (to, subject, body) {
+  /** Sends plain text always. Adds htmlBody when a layout was built. */
+  send_: function (to, subject, body, html) {
     if (!to) return;
+    var opt = { to: to, subject: subject, body: body, replyTo: LETSTALK.OWNER_EMAIL, name: 'Keyona Meeks, ReRev Labs' };
+    if (html) opt.htmlBody = html;
     try {
-      MailApp.sendEmail({ to: to, subject: subject, body: body, replyTo: LETSTALK.OWNER_EMAIL, name: 'Keyona Meeks, ReRev Labs' });
-    } catch (e) { console.error('letstalk send failed: ' + errMsg_(e)); }
+      MailApp.sendEmail(opt);
+    } catch (e) {
+      console.error('letstalk send failed: ' + errMsg_(e));
+      if (html) {
+        // The HTML layout was refused. Never lose the email: retry as plain text.
+        try { delete opt.htmlBody; MailApp.sendEmail(opt); } catch (e2) { console.error('letstalk plain retry failed: ' + errMsg_(e2)); }
+      }
+    }
+  },
+
+  /** Builds an HTML layout. A layout bug must never block the plain-text email. */
+  html_: function (fn) {
+    try { return fn(); } catch (e) { console.error('letstalk html build failed: ' + errMsg_(e)); return ''; }
   },
 
   emails_: function (d, a, res, screen, row) {
@@ -249,7 +265,8 @@ var Letstalk = {
         'In the next 40, I\'ll ask how ' + v.company + ' thinks about AI agents and automation, including what you wrote about "' + v.workflowShort + '". ' +
         "That's the trade, and there's no pitch.\n\n" +
         'Before the call, please have access to ' + v.access + ' so we can install live.\n\n' +
-        'See you soon,\nKeyona\nReRev Labs \u00b7 rerev.io');
+        'See you soon,\nKeyona\nReRev Labs · rerev.io',
+        this.html_(function () { return LetstalkMail.qualified(v, screen.buttonUrl); }));
     }
 
     if (res.status === 'not_fit' && okEmail && L.SEND_NOT_FIT_EMAIL) {
@@ -258,7 +275,8 @@ var Letstalk = {
         'Thanks for applying. This round is for teams planning to invest in automation in the next 90 days, so it isn\'t the right fit yet.\n\n' +
         'In the meantime, our newsletter shares the systems we build for small teams, free: ' + L.NEWSLETTER_URL +
         (L.DIY_URL ? '\nHere\'s a free guide to get started: ' + L.DIY_URL : '') + '\n\n' +
-        'Keyona\nReRev Labs \u00b7 rerev.io');
+        'Keyona\nReRev Labs · rerev.io',
+        this.html_(function () { return LetstalkMail.notFit(v, L.NEWSLETTER_URL, L.DIY_URL); }));
     }
 
     if (res.status === 'qualified' || res.status === 'review') {
@@ -266,19 +284,33 @@ var Letstalk = {
       try {
         link = row && row.sheet ? Data.ss().getUrl() + '#gid=' + row.sheet.getSheetId() + (row.row ? '&range=A' + row.row : '') : '';
       } catch (e) {}
+      var noBooking = res.status === 'qualified' && !screen.buttonUrl;
       var lines = ['Status: ' + res.status, 'Reasons: ' + (res.reasons.join('; ') || '(none)'), 'Priority: ' + res.priority, ''];
+      var rows = [];
       d.questions.forEach(function (q) {
         if (LAYOUT_TYPES[q.type]) return;
         lines.push((q.label || q.id) + ': ' + (a[q.id] || '(blank)'));
+        var val = a[q.id];
+        rows.push({
+          label: String(q.label || q.id).replace(/\{\{\s*([\w-]+)\s*\}\}/g, function (m, k) { return a[k] == null ? '' : String(a[k]); }),
+          value: Array.isArray(val) ? val.join(', ') : (val == null ? '' : (typeof val === 'object' ? JSON.stringify(val) : String(val))),
+          kind: q.type === 'email' ? 'email' : q.type === 'url' ? 'url' : 'text'
+        });
       });
-      if (res.status === 'qualified' && !screen.buttonUrl) {
+      if (noBooking) {
         lines.unshift('NO BOOKING URL SET. Email this applicant a booking link by hand, then set LETSTALK_BOOKING_URL in the Settings tab.', '');
       }
       if (res.status === 'review') lines.push('', 'To approve: reply to ' + email + ' with your booking link.');
       lines.push('', 'Sheet row: ' + link);
       this.send_(L.OWNER_EMAIL,
         '[Free build] ' + res.status + ': ' + v.company + ' (' + (a.q_budget || '?') + ', ' + (a.q_timeline || '?') + '), score ' + res.priority,
-        lines.join('\n'));
+        lines.join('\n'),
+        this.html_(function () {
+          return LetstalkMail.owner({
+            status: res.status, reasons: res.reasons, priority: res.priority, company: v.company,
+            rows: rows, noBooking: noBooking, approveEmail: res.status === 'review' ? email : '', sheetLink: link
+          });
+        }));
     }
   }
 };
