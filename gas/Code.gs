@@ -7,7 +7,7 @@
  * POST {action:'upload', ...}                     -> upload a file or signature to Drive
  * POST bodies are sent as text/plain JSON so browsers skip the CORS preflight.
  */
-var VERSION = '1.0.5';
+var VERSION = '1.1.0';
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
