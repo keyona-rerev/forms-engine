@@ -16,7 +16,7 @@ Version: 1.0.2
 
 - Setup wizard: http://rerev-forms-engine-setup.netlify.app
 - Form page: http://rerev-forms.netlify.app (form link: `/?f=FORMID`)
-- Template Sheet: https://docs.google.com/spreadsheets/d/1W9iea0-AVzgc_RjnLsamp3fsywPC_HDlKajNCpnfNrw/edit
+- Template Sheet: private Google Sheet (owner access only; link removed for privacy)
 
 ## How it works
 
