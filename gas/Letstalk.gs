@@ -275,7 +275,10 @@ var Letstalk = {
         "That's the trade, and there's no pitch.\n\n" +
         'Before the call, please have access to ' + v.access + ' so we can install live.\n\n' +
         'See you soon,\nKeyona\nReRev Labs · rerev.io',
-        this.html_(function () { return LetstalkMail.qualified(v, screen.buttonUrl, test); }));
+        this.html_(function () {
+          var h = LetstalkMail.qualified(v, screen.buttonUrl, test);
+          return v.workflowShort ? h : h.replace(', including what you wrote about “”', '');
+        }));
     }
 
     if (res.status === 'not_fit' && okEmail && L.SEND_NOT_FIT_EMAIL) {
