@@ -110,7 +110,7 @@ var Letstalk = {
       if (tl === L.TIMELINE_REVIEW) miss.push('timeline 3–6 mo');
       else hard.push('timeline: ' + (tl || 'missing'));
     }
-    if (wf.length < L.WORKFLOW_MIN_CHARS) miss.push('workflow answer too short');
+    if (wf.length > 0 && wf.length < L.WORKFLOW_MIN_CHARS) miss.push('workflow answer too short');
 
     var priority = this.priority_(a);
     if (hard.length) return { status: 'not_fit', reasons: hard.concat(miss), priority: priority };
@@ -271,7 +271,7 @@ var Letstalk = {
         "Thanks for applying. You're one of our 10 free builds.\n\n" +
         'Book your 60-minute session here: ' + screen.buttonUrl + '\n\n' +
         'How it goes: in the first 20 minutes I install and customize your ' + v.toolName + ' on your own accounts. ' +
-        'In the next 40, I\'ll ask how ' + v.company + ' thinks about AI agents and automation, including what you wrote about "' + v.workflowShort + '". ' +
+        'In the next 40, I\'ll ask how ' + v.company + ' thinks about AI agents and automation' + (v.workflowShort ? ', including what you wrote about "' + v.workflowShort + '"' : '') + '. ' +
         "That's the trade, and there's no pitch.\n\n" +
         'Before the call, please have access to ' + v.access + ' so we can install live.\n\n' +
         'See you soon,\nKeyona\nReRev Labs · rerev.io',
