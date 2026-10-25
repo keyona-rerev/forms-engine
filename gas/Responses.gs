@@ -62,7 +62,9 @@ var Responses = {
       vals[2] = complete ? 'complete' : 'partial';
       vals[3] = now;
       Object.keys(clean).forEach(function (k) { if (tgt.cols[k]) vals[tgt.cols[k] - 1] = safe_(clean[k]); });
-      tgt.sheet.getRange(at > 0 ? at : tgt.sheet.getLastRow() + 1, 1, 1, width).setValues([vals]);
+      var rowAt = at > 0 ? at : tgt.sheet.getLastRow() + 1;
+      tgt.sheet.getRange(rowAt, 1, 1, width).setValues([vals]);
+      try { Attribution.write_(tgt.sheet, rowAt, p.meta); } catch (me) { console.error('attribution failed: ' + errMsg_(me)); }
       });
     } catch (err) {
       console.error('save failed: ' + errMsg_(err));
@@ -76,6 +78,9 @@ var Responses = {
     if (complete && Letstalk.handles(d.priv.formId)) {
       try { result = wasComplete ? Letstalk.again(d, clean, sid) : Letstalk.process(d, clean, sid); }
       catch (err2) { console.error('letstalk failed: ' + errMsg_(err2)); result = null; }
+    }
+    if (complete && !wasComplete) {
+      try { crmSync_(d, clean, sid, result ? result.status : 'complete', ''); } catch (e3) { console.error('crmSync failed: ' + errMsg_(e3)); }
     }
     if (complete && !wasComplete && !result) notify_(d, clean);
     var out = { ok: true, status: complete ? 'complete' : 'partial' };
