@@ -108,6 +108,18 @@ const sp = new URLSearchParams(location.search);
 const FORM_ID = (sp.get('f') || '').trim();
 const PREVIEW_KEY = sp.get('key') || '';
 const SK = 'rf:' + FORM_ID;
+// Tracking data from the address (utm_*, fbclid, landing_page, referrer). Anything that is not f, key or a_*. Sent with every save.
+const META = {};
+sp.forEach((val, key) => {
+  if (key === 'f' || key === 'key' || key.indexOf('a_') === 0) return;
+  if (!/^[a-z0-9_]{1,40}$/i.test(key) || Object.keys(META).length >= 12) return;
+  META[key] = String(val).slice(0, 300);
+});
+let startSent = false;
+function notifyStart() {
+  if (startSent || window.parent === window) return; startSent = true;
+  try { window.parent.postMessage({ type: 'rerev-form-start', formId: FORM_ID }, '*'); } catch (e) {}
+}
 const LAYOUT = { welcome: 1, statement: 1 };
 const LET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const stage = document.getElementById('stage');
@@ -268,6 +280,7 @@ async function next() {
       const val = await widget.get(), err = validate(qn, val);
       if (err) { setErr(err); if (widget.focus) widget.focus(); return; }
       answers[qn.id] = val;
+      if (!preview) notifyStart();
     }
     const n = nextIndex(idx);
     if (n >= qs.length) { if (!(await submit())) return; trail.push(idx); return; }
@@ -304,7 +317,7 @@ function validate(qn, v) {
 /* ---------- save ---------- */
 function ids() { return trail.map(i => qs[i].id); }
 function pick(list) { const o = {}; list.forEach(id => { if (id in answers) o[id] = answers[id]; }); return o; }
-function partialPayload() { const v = ids(); return { action: 'save', formId: FORM_ID, sessionId: sid, answers: pick(v), visited: v, complete: false }; }
+function partialPayload() { const v = ids(); return { action: 'save', formId: FORM_ID, sessionId: sid, answers: pick(v), visited: v, complete: false, meta: META }; }
 function queueSave() {
   if (preview || done || !Object.keys(pick(ids())).length) return; clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { post(partialPayload()).catch(() => {}); }, 500);
@@ -317,7 +330,7 @@ async function submit() {
   const v = [...trail, idx].map(i => qs[i].id);
   if (preview) { finish(); return true; }
   try {
-    const r = await post({ action: 'save', formId: FORM_ID, sessionId: sid, answers: pick(v), visited: v, complete: true, hp: (document.querySelector('.hp') || {}).value || '' });
+    const r = await post({ action: 'save', formId: FORM_ID, sessionId: sid, answers: pick(v), visited: v, complete: true, meta: META, hp: (document.querySelector('.hp') || {}).value || '' });
     if (r.ok) { finish(r.result); return true; }
     if (r.error === 'required') { const j = qs.findIndex(x => x.id === r.questionId); if (j >= 0) { show(j, 'back'); setErr('This question is required.'); } return false; }
     if (r.error === 'closed') { msg('Form closed', 'This form is no longer accepting responses.'); return false; }
@@ -332,13 +345,13 @@ function onAccent(hex) {
 }
 const CHIP = { qualified: 'Approved', review: 'Under review', not_fit: 'Application received' };
 // Tells a page that embeds this form how tall the result card is, so the iframe fits it with no inner scrollbar.
-function reportHeight(card) {
+function reportHeight(card, outcome) {
   if (window.parent === window) return;
   const send = () => {
     const top = document.getElementById('top'), cs = getComputedStyle(stage);
     // 56px of room under the card keeps host badges (for example Netlify's "Powered by" pill) from covering it.
     const hgt = Math.ceil(top.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + card.offsetHeight + parseFloat(getComputedStyle(card).marginTop) + 56);
-    try { window.parent.postMessage({ type: 'rerev-form-outcome', formId: FORM_ID, height: hgt }, '*'); } catch (e) {}
+    try { window.parent.postMessage({ type: 'rerev-form-outcome', formId: FORM_ID, height: hgt, status: 'complete', outcome: outcome || '' }, '*'); } catch (e) {}
   };
   send();
   if (window.ResizeObserver) new ResizeObserver(send).observe(card);
@@ -359,11 +372,12 @@ function finish(result) {
       rsUrl ? h('a', { class: 'btn', href: rsUrl, target: '_blank', rel: 'noopener noreferrer' }, rs.buttonLabel || 'Continue') : null);
     stage.replaceChildren(card);
     if (window.parent !== window) document.getElementById('top').style.display = 'none'; // no empty header strip inside an embed
-    reportHeight(card);
+    reportHeight(card, rs.status);
   } else {
     stage.replaceChildren(h('section', { class: 'screen' }, h('div', { class: 'check', 'aria-hidden': 'true' }, '✓'),
       h('h1', { class: 'label', id: 'lbl', tabindex: '-1' }, form.thankYouTitle), h('p', { class: 'desc' }, linkify(pipe(form.thankYouText))),
       form.redirectUrl ? h('a', { class: 'btn', href: form.redirectUrl }, 'Continue') : null));
+    if (!preview && stage.firstChild) reportHeight(stage.firstChild, '');
   }
   document.getElementById('lbl').focus({ preventScroll: true });
   if (!rs && form.redirectUrl && !preview) setTimeout(() => { location.href = form.redirectUrl; }, 5000);
