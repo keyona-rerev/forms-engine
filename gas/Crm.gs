@@ -47,7 +47,7 @@ var Crm = {
     var pName = (this.prop_('LACRM_PIPELINE') || CRM.PIPELINE).toLowerCase();
     var sName = (this.prop_('LACRM_STAGE') || CRM.STAGE).toLowerCase();
     var res = this.call_('GetPipelines', {});
-    var list = res.Results || res.Pipelines || res.Result || [];
+    var list = Array.isArray(res) ? res : (res.Results || res.Pipelines || res.Result || []);
     if (!Array.isArray(list)) list = [];
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
@@ -76,8 +76,16 @@ var Crm = {
     return null;
   },
 
+  /** Splits a full name on the last space: "Ada May Lovelace" -> { FirstName: "Ada May", LastName: "Lovelace" }. */
+  splitName_: function (name) {
+    var s = String(name || '').trim().replace(/\s+/g, ' ');
+    var i = s.lastIndexOf(' ');
+    if (i <= 0) return { FirstName: s, LastName: '' };
+    return { FirstName: s.slice(0, i), LastName: s.slice(i + 1) };
+  },
+
   createContact_: function (name, email, userId) {
-    var base = { IsCompany: false, AssignedTo: userId, Name: name };
+    var base = { IsCompany: false, AssignedTo: userId, Name: this.splitName_(name) };
     try {
       var r = this.call_('CreateContact', Object.assign({}, base, { Email: [{ Email: email, Type: 'Work' }] }));
       return r.ContactId;
@@ -105,7 +113,7 @@ var Crm = {
     if (!this.prop_('LACRM_API_KEY')) return 'no_key';
     var email = String(a.q_email || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return 'no_email';
-    if (String(a.q_name || '').trim().toLowerCase().indexOf(String(LETSTALK.TEST_MARKER).toLowerCase()) === 0) return 'test_skipped';
+    if (Letstalk.isTest_(a)) return 'test_skipped';
 
     var userId = this.userId_();
     var contactId = this.findContact_(email), made = false;

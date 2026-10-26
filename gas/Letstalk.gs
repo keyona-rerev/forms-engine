@@ -37,7 +37,8 @@ var LETSTALK = {
   DEPOSIT_ENABLED: false,
   DEPOSIT_AMOUNT: 100,
   SEND_NOT_FIT_EMAIL: true,
-  // Submissions whose name or company starts with this text are tests. Their emails get a [TEST] subject prefix and a TEST banner.
+  // Submissions whose name or company starts with this text are tests (so is any name starting with "TEST", see isTest_).
+  // Their emails get a [TEST] subject prefix and a TEST banner, and they skip the CRM.
   TEST_MARKER: 'SYNTHETIC TEST',
   // Links and people
   OWNER_EMAIL: 'keyona@rerev.io',
@@ -255,9 +256,12 @@ var Letstalk = {
   },
 
   isTest_: function (a) {
+    var name = String(a.q_name || '').trim();
+    // Any name that starts with "TEST" (capitals) is a test, e.g. "TEST - Tab verify Oct 25".
+    if (name.indexOf('TEST') === 0) return true;
     var m = String(LETSTALK.TEST_MARKER || '').toLowerCase();
     if (!m) return false;
-    return String(a.q_name || '').trim().toLowerCase().indexOf(m) === 0 || String(a.q_company || '').trim().toLowerCase().indexOf(m) === 0;
+    return name.toLowerCase().indexOf(m) === 0 || String(a.q_company || '').trim().toLowerCase().indexOf(m) === 0;
   },
 
   emails_: function (d, a, res, screen, row) {
