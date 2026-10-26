@@ -95,8 +95,7 @@ canvas.sig{width:100%;height:180px;background:#fff;border:2px solid var(--line);
 </style>
 </head>
 <body>
-<div id="bar" role="progressbar" aria-label="Form progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="barfill"></div></div>
-<header id="top"><img id="logo" alt="" hidden><button id="back" type="button" aria-label="Previous question" hidden>&#8593;</button></header>
+<header id="top"><div id="bar" role="progressbar" aria-label="Form progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="barfill"></div></div><img id="logo" alt="" hidden><button id="back" type="button" aria-label="Previous question" hidden>&#8593;</button></header>
 <main id="stage"><noscript>This form needs JavaScript.</noscript></main>
 <div class="hp-wrap" aria-hidden="true"><label>Website<input class="hp" name="website" tabindex="-1" autocomplete="off"></label></div>
 <script>
@@ -206,7 +205,7 @@ function lum(hex) {
 function theme() {
   const r = document.documentElement.style, t = form.theme;
   r.setProperty('--bg', t.bg); r.setProperty('--text', t.text); r.setProperty('--accent', t.accent);
-  r.setProperty('--on-accent', lum(t.accent) > .4 ? '#0D1F2D' : '#fff');
+  r.setProperty('--on-accent', onAccent(t.accent));
   const f = String(form.font || '').replace(/[^A-Za-z0-9 ]/g, '').trim();
   if (f) {
     document.head.append(h('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(f).replace(/%20/g, '+') + ':wght@400;600;700&display=swap' }));
@@ -270,7 +269,11 @@ function nextIndex(i) {
   }
   return i + 1;
 }
-function setErr(t) { const e = document.getElementById('err'); if (e) e.textContent = t || ''; }
+function setErr(t) {
+  const e = document.getElementById('err'); if (e) e.textContent = t || '';
+  const i = document.getElementById('in');
+  if (i) { if (t) { i.setAttribute('aria-invalid', 'true'); i.setAttribute('aria-describedby', 'err'); } else { i.removeAttribute('aria-invalid'); i.removeAttribute('aria-describedby'); } }
+}
 async function next() {
   if (busy || done) return; busy = true; setErr('');
   const ok = document.querySelector('.ok'); if (ok) ok.disabled = true;
